@@ -11,3 +11,13 @@ This tool performs keyframe reduction on an AnimationClip by using polynomial fi
 - Open the `Window/Im/Keyframe Reduction` window.
 - Set the original AnimationClip, and leave the `Output Clip` field empty, then click `Execute`.
   - If the `Output Clip` field is not empty, the process will overwrite the existing `Output Clip`.
+
+## Example
+
+Input: TestInput.anim (983KB)
+
+![Screenshot](img/testInput.png)
+
+Output: TestOutput.anim (232KB), processed with default configuration (threshold = 1e-06, dt = 1/60, non-brute force mode).
+
+![Screenshot](img/testOutput.png)
