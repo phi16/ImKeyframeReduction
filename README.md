@@ -12,6 +12,10 @@ This tool performs keyframe reduction on an AnimationClip by using polynomial fi
 - Set the original AnimationClip, and leave the `Output Clip` field empty, then click `Execute`.
   - If the `Output Clip` field is not empty, the process will overwrite the existing `Output Clip`.
 
+## Note
+
+- It is recommended to use Brute Force Mode to obtain accurate results.
+
 ## Example
 
 Input: TestInput.anim (983KB)
