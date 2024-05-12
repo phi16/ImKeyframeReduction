@@ -10,12 +10,13 @@ This tool performs keyframe reduction on an AnimationClip by using polynomial fi
   - If you have already imported the MathNet.Numerics package, simply copy [the core script](https://github.com/phi16/ImKeyframeReduction/blob/main/Assets/Im/Script/KeyframeReduction.cs) into your project.
 - Open the `Window/Im/Keyframe Reduction` window.
 - Set the original AnimationClip, and leave the `Output Clip` field empty, then click `Execute`.
-  - If the `Output Clip` field is not empty, the process will overwrite the existing `Output Clip`.
+    - If the `Output Clip` field is not empty, the process will overwrite the existing `Output Clip`.
 
 ## Note
 
 - It is recommended to use Brute Force Mode to obtain accurate results.
-  - Looking to fix...
+    - Looking to fix...
+- (TODO: UPM?)
 
 ## Example
 
@@ -26,3 +27,11 @@ Input: TestInput.anim (983KB)
 Output: TestOutput.anim (232KB), processed with default configuration (threshold = 1e-06, dt = 1/60, non-brute force mode).
 
 ![Screenshot](img/testOutput.png)
+
+## Release notes
+
+- 2024/05/12
+    - Copy original clip settings
+    - Set Brute Force Mode as default
+- 2024/04/23
+    - Release
