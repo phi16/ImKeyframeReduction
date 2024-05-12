@@ -238,6 +238,9 @@ public class KeyframeReduction : EditorWindow
         EditorUtility.ClearProgressBar(); 
         if(cancel) return;
 
+        var settings = AnimationUtility.GetAnimationClipSettings(clip);
+        AnimationUtility.SetAnimationClipSettings(ac, settings);
+
         if(outputClip == null) {
             string path = AssetDatabase.GetAssetPath(clip);
             string newPath = $"{Path.GetDirectoryName(path)}/{Path.GetFileNameWithoutExtension(path)}_reduced.anim";
