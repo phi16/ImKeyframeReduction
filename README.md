@@ -15,6 +15,7 @@ This tool performs keyframe reduction on an AnimationClip by using polynomial fi
 ## Note
 
 - It is recommended to use Brute Force Mode to obtain accurate results.
+  - Looking to fix...
 
 ## Example
 

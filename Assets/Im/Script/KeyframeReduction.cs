@@ -195,7 +195,7 @@ public class KeyframeReduction : EditorWindow
     private AnimationClip outputClip;
     private double threshold = 0.000001;
     private float dt = 1 / 60.0f;
-    private bool bruteForce = false;
+    private bool bruteForce = true;
     private bool cancel = false;
 
     [MenuItem("Window/Im/Keyframe Reduction")]
