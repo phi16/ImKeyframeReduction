@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using System;
+using System.Threading.Tasks;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -196,7 +197,6 @@ public class KeyframeReduction : EditorWindow
     private double threshold = 0.000001;
     private float dt = 1 / 60.0f;
     private bool bruteForce = true;
-    private bool cancel = false;
 
     [MenuItem("Window/Im/Keyframe Reduction")]
     public static void ShowWindow() {
@@ -216,9 +216,40 @@ public class KeyframeReduction : EditorWindow
         }
     }
 
-    void Run() {
+    private void Run() {
+        var task = new KeyframeReductionTask(clip, outputClip, threshold, dt, bruteForce);
+        task.Run();
+    }
+}
+
+public class KeyframeReductionTask
+{
+    private readonly AnimationClip clip;
+    private readonly AnimationClip outputClip;
+    private readonly double threshold;
+    private readonly float dt;
+    private readonly bool bruteForce;
+    private bool cancel = false;
+    private int progressId;
+
+    public KeyframeReductionTask(AnimationClip clip, AnimationClip outputClip, double threshold, float dt, bool bruteForce) {
+        this.clip = clip;
+        this.outputClip = outputClip;
+        this.threshold = threshold;
+        this.dt = dt;
+        this.bruteForce = bruteForce;
+    }
+
+    public async void Run() {
         cancel = false;
         if(clip == null) return;
+
+        progressId = Progress.Start("Keyframe Reduction");
+        Progress.RegisterCancelCallback(progressId, () => {
+            cancel = true;
+            return true;
+        });
+
         AnimationClip ac = new AnimationClip();
         EditorCurveBinding[] allBindings = AnimationUtility.GetCurveBindings(clip);
         for(int i=0;i<allBindings.Length;i++) {
@@ -230,7 +261,7 @@ public class KeyframeReduction : EditorWindow
             if(binding.propertyName.Contains("Rotation")) type = ReductionCurve.CurveType.Radian;
             // Note: Add any binding type you want here, or send me a PR!
 
-            AnimationCurve reduced = ExecuteReduction($"{binding.path}/{binding.propertyName} ({i+1}/{allBindings.Length})", curve, type);
+            AnimationCurve reduced = await Task.Run(() => ExecuteReduction($"{binding.path}/{binding.propertyName} ({i+1}/{allBindings.Length})", curve, type));
             ac.SetCurve(binding.path, binding.type, binding.propertyName, reduced);
 
             if(cancel) break;
@@ -249,7 +280,8 @@ public class KeyframeReduction : EditorWindow
             string path = AssetDatabase.GetAssetPath(outputClip);
             Write(path, ac, false);
         }
-        outputClip = ac;
+
+        Progress.Finish(progressId, Progress.Status.Succeeded);
     }
 
     private AnimationCurve ExecuteReduction(string label, AnimationCurve c, ReductionCurve.CurveType t) {
@@ -271,8 +303,8 @@ public class KeyframeReduction : EditorWindow
                     k.Tick(tf, c.Evaluate(tf));
                     lastTime = tf;
                 }
-                if(EditorUtility.DisplayCancelableProgressBar("Keyframe Reduction", label, (float) i / c.keys.Length)) {
-                    cancel = true;
+                Progress.Report(progressId, (float) i / c.keys.Length, label);
+                if(cancel) {
                     break;
                 }
             }
@@ -282,8 +314,8 @@ public class KeyframeReduction : EditorWindow
             while(lt < endTime) {
                 k.Tick(lt, c.Evaluate(lt)); 
                 lt += dt;
-                if(EditorUtility.DisplayCancelableProgressBar("Keyframe Reduction", label, lt / endTime)) {
-                    cancel = true;
+                Progress.Report(progressId, lt / endTime, label);
+                if(cancel) {
                     break;
                 }
             }
