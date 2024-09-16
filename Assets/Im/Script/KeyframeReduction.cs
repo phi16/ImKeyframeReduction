@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 #if UNITY_EDITOR
@@ -231,6 +233,10 @@ public class KeyframeReductionTask
     private readonly bool bruteForce;
     private bool cancel = false;
     private int progressId;
+    private int curveCount = 0;
+    private int doneCurveCount = 0;
+    private int reductionLoops = 0;
+    private int doneReductionLoops = 0;
 
     public KeyframeReductionTask(AnimationClip clip, AnimationClip outputClip, double threshold, float dt, bool bruteForce) {
         this.clip = clip;
@@ -241,7 +247,6 @@ public class KeyframeReductionTask
     }
 
     public async void Run() {
-        cancel = false;
         if(clip == null) return;
 
         progressId = Progress.Start("Keyframe Reduction");
@@ -252,22 +257,44 @@ public class KeyframeReductionTask
 
         AnimationClip ac = new AnimationClip();
         EditorCurveBinding[] allBindings = AnimationUtility.GetCurveBindings(clip);
+        AnimationCurve[] curves = allBindings.Select(b => AnimationUtility.GetEditorCurve(clip, b)).ToArray();
+        AnimationCurve[] reducedCurves = new AnimationCurve[allBindings.Length];
+
+        curveCount = allBindings.Length;
+        foreach(var c in curves) {
+            if(!bruteForce) {
+                reductionLoops += c.keys.Length;
+            } else {
+                float endTime = c.keys[c.keys.Length-1].time;
+                // This value may differ slightly from the actual number of reduction loops
+                // due to floating point errors.
+                reductionLoops += Mathf.CeilToInt(endTime / dt);
+            }
+        }
+
+        await Task.Run(() => {
+            Parallel.For(0, allBindings.Length, i => {
+                EditorCurveBinding binding = allBindings[i];
+                AnimationCurve curve = curves[i];
+
+                ReductionCurve.CurveType type = ReductionCurve.CurveType.Smooth;
+                if(binding.propertyName == "m_IsActive") type = ReductionCurve.CurveType.Discrete;
+                if(binding.propertyName.Contains("Rotation")) type = ReductionCurve.CurveType.Radian;
+                // Note: Add any binding type you want here, or send me a PR!
+
+                reducedCurves[i] = ExecuteReduction(curve, type);
+
+                Interlocked.Increment(ref doneCurveCount);
+                UpdateProgress();
+            });
+        });
+        if(cancel) return;
+
         for(int i=0;i<allBindings.Length;i++) {
             EditorCurveBinding binding = allBindings[i];
-            AnimationCurve curve = AnimationUtility.GetEditorCurve(clip, binding);
-
-            ReductionCurve.CurveType type = ReductionCurve.CurveType.Smooth;
-            if(binding.propertyName == "m_IsActive") type = ReductionCurve.CurveType.Discrete;
-            if(binding.propertyName.Contains("Rotation")) type = ReductionCurve.CurveType.Radian;
-            // Note: Add any binding type you want here, or send me a PR!
-
-            AnimationCurve reduced = await Task.Run(() => ExecuteReduction($"{binding.path}/{binding.propertyName} ({i+1}/{allBindings.Length})", curve, type));
+            AnimationCurve reduced = reducedCurves[i];
             ac.SetCurve(binding.path, binding.type, binding.propertyName, reduced);
-
-            if(cancel) break;
         }
-        EditorUtility.ClearProgressBar(); 
-        if(cancel) return;
 
         var settings = AnimationUtility.GetAnimationClipSettings(clip);
         AnimationUtility.SetAnimationClipSettings(ac, settings);
@@ -284,7 +311,7 @@ public class KeyframeReductionTask
         Progress.Finish(progressId, Progress.Status.Succeeded);
     }
 
-    private AnimationCurve ExecuteReduction(string label, AnimationCurve c, ReductionCurve.CurveType t) {
+    private AnimationCurve ExecuteReduction(AnimationCurve c, ReductionCurve.CurveType t) {
         ReductionCurve k = new ReductionCurve(threshold, t);
         if(!bruteForce) {
             float lastTime = 0;
@@ -303,7 +330,9 @@ public class KeyframeReductionTask
                     k.Tick(tf, c.Evaluate(tf));
                     lastTime = tf;
                 }
-                Progress.Report(progressId, (float) i / c.keys.Length, label);
+
+                Interlocked.Increment(ref doneReductionLoops);
+                UpdateProgress();
                 if(cancel) {
                     break;
                 }
@@ -314,7 +343,9 @@ public class KeyframeReductionTask
             while(lt < endTime) {
                 k.Tick(lt, c.Evaluate(lt)); 
                 lt += dt;
-                Progress.Report(progressId, lt / endTime, label);
+
+                Interlocked.Increment(ref doneReductionLoops);
+                UpdateProgress();
                 if(cancel) {
                     break;
                 }
@@ -324,6 +355,11 @@ public class KeyframeReductionTask
         }
         k.Done();
         return k.curve;
+    }
+
+    private void UpdateProgress() {
+        string label = $"{doneCurveCount}/{curveCount}";
+        Progress.Report(progressId, (float)doneReductionLoops / reductionLoops, label);
     }
 
     private void Write(string rawPath, AnimationClip clip, bool unique) {
