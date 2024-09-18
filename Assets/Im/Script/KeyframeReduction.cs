@@ -298,9 +298,25 @@ public class KeyframeReduction : EditorWindow
         string path = unique
             ? AssetDatabase.GenerateUniqueAssetPath(rawPath)
             : rawPath;
-        AssetDatabase.CreateAsset(clip, path);
+        OverwriteAsset(clip, path);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
+    }
+
+    private void OverwriteAsset(UnityEngine.Object asset, string path) {
+        if(File.Exists(path)) {
+            string tmpDirPath = Path.Combine(Path.GetDirectoryName(path), "tmpOverwrite");
+            Directory.CreateDirectory(tmpDirPath);
+
+            string tmpPath = Path.Combine(tmpDirPath, Path.GetFileName(path));
+            AssetDatabase.CreateAsset(asset, tmpPath);
+
+            FileUtil.ReplaceFile(tmpPath, path);
+            AssetDatabase.DeleteAsset(tmpDirPath);
+            AssetDatabase.ImportAsset(path);
+        } else {
+            AssetDatabase.CreateAsset(asset, path);
+        }
     }
 }
 
