@@ -6,7 +6,7 @@ This tool performs keyframe reduction on an AnimationClip by using polynomial fi
 
 ## Usage
 
-- Import the [ImKeyframeReduction.unitypackage](https://github.com/phi16/ImKeyframeReduction/raw/main/ImKeyframeReduction.unitypackage).
+- Import the [ImKeyframeReduction.unitypackage](https://github.com/phi16/ImKeyframeReduction/releases).
   - If you have already imported the MathNet.Numerics package, simply copy [the core script](https://github.com/phi16/ImKeyframeReduction/blob/main/Assets/Im/Script/KeyframeReduction.cs) into your project.
 - Open the `Window/Im/Keyframe Reduction` window.
 - Set the original AnimationClip, and leave the `Output Clip` field empty, then click `Execute`.
